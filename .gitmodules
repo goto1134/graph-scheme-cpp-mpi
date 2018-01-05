@@ -1,0 +1,6 @@
+[submodule "fruit-framework"]
+	path = fruit-framework
+	url = https://github.com/google/fruit.git
+[submodule "graph-scheme-cpp"]
+	path = graph-scheme-cpp
+	url = https://github.com/goto1134/graph-scheme-cpp.git
