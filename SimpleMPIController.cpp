@@ -4,22 +4,18 @@
 
 #include <mpi.h>
 #include <Module.h>
-#include <map>
-#include <iostream>
+#include <boost/format.hpp>
+#include <boost/array.hpp>
+#include <valarray>
 #include "SimpleMPIController.h"
 
 void SimpleMPIController::start() {
-    int provided_thread_level;
-    MPI_Init_thread(0, 0, MPI_THREAD_FUNNELED, &provided_thread_level);
     // Get the number of processes
     int world_size;
     MPI_Comm_size(MPI_COMM_WORLD, &world_size);
     int rank;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
-    if (rank == MASTER_NODE) {
-        std::cout << "Provided Thread Level = " << provided_thread_level << std::endl;
-    }
 
     std::map<int, ModuleId> moduleMap = getModuleMap(world_size, rank);
 
@@ -32,10 +28,29 @@ void SimpleMPIController::start() {
     MPI_Barrier(MPI_COMM_WORLD);
 
 
-    auto sendbuf = new bool[world_size];
-    auto receivebuf = new bool[world_size];
+    auto sendbuf = new bool[world_size]{0, 1};
+    auto receivebuf = new bool[world_size]{0, 0};
 
-//    MPI_Alltoall(sendbuf, world_size,)
+    MPI_Alltoall(sendbuf, 1, MPI_CXX_BOOL, receivebuf, 1, MPI_CXX_BOOL, MPI_COMM_WORLD);
+
+    std::valarray<bool> result = std::valarray<bool>(sendbuf, world_size) | std::valarray<bool>(receivebuf, world_size);
+
+
+    for (int i = 0; i < world_size; ++i) {
+        if (i == rank)
+            continue;
+        if (result[i]) {
+            int data_to_send = i;
+            int data_to_receive;
+            MPI_Status status;
+            MPI_Sendrecv(&data_to_send, 1, MPI_INT, i, 0, &data_to_receive, 1, MPI_INT, i, 0, MPI_COMM_WORLD, &status);
+            std::cout << boost::format("WITH %3% %1% to send, %2% to receive") % data_to_send % data_to_receive % i
+                      << std::endl;
+        }
+        std::cout << boost::format("%1% Need to communicate with %2% %3% %4% %5%") % rank % i % receivebuf[i] %
+                     sendbuf[i] % result[i]
+                  << std::endl;
+    }
 
     if (rank == MASTER_NODE) {
         std::cout << world_size << std::endl;
@@ -68,7 +83,7 @@ std::map<int, ModuleId> SimpleMPIController::getModuleMap(int world_size, int ra
         moduleMap.insert(std::make_pair(buffer[2 * i], buffer[2 * i + 1]));
     }
 
-    free(buffer);
+    delete [] buffer;
     return moduleMap;
 }
 

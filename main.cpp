@@ -1,5 +1,7 @@
 
 #include <fruit/fruit.h>
+#include <iostream>
+#include <mpi.h>
 #include "MPIController.h"
 #include "SimpleMPIController.h"
 #include "HelloWorldModuleLoader.h"
@@ -63,6 +65,7 @@ fruit::Component<MPIController> getComponent();
 
 int main(int argc, char **argv) {
 
+    std::cout << "Before start" << std::endl;
 //    MPI_Init(&argc, &argv);
 //    // Get the number of processes
 //    int world_size;
@@ -85,6 +88,15 @@ int main(int argc, char **argv) {
 //        std::cout << world_size << std::endl;
 //        std::cout << "Hello, World!" << std::endl;
 //    }
+
+    int provided_thread_level;
+    MPI_Init_thread(&argc, &argv, MPI_THREAD_FUNNELED, &provided_thread_level);
+
+    if (provided_thread_level < MPI_THREAD_FUNNELED) {
+        exit(-1);
+    }
+
+    std::cout << "Provided Thread Level = " << provided_thread_level << std::endl;
 
     fruit::Injector<MPIController> injector(getComponent);
     MPIController *controller(injector);

@@ -13,13 +13,14 @@
 #include <Module.h>
 #include <map>
 #include <iostream>
+#include <Data.h>
 
 class Procedure {
 protected:
     const Tag tag;
-    const std::map<int, std::experimental::any> data;
+    const std::map<int, Data> data;
 public:
-    Procedure(Tag tag, std::map<int, std::experimental::any> data) : tag(tag), data(move(data)) {}
+    Procedure(Tag tag, std::map<int, Data> data) : tag(tag), data(move(data)) {}
 
     virtual void run() = 0;
 };
@@ -27,11 +28,11 @@ public:
 class ProcedureFactory {
 public:
     typedef std::unordered_map<ModuleId, std::function<Procedure *(Tag,
-                                                                   std::map<int, std::experimental::any>)>> registry_map;
+                                                                   std::map<int, Data>)>> registry_map;
 
     // use this to instantiate the proper Derived class
     static Procedure *
-    instantiate(const ModuleId &name, Tag tag, std::map<int, std::experimental::any> data) {
+    instantiate(const ModuleId &name, Tag tag, std::map<int, Data> data) {
         auto it = ProcedureFactory::registry().find(name);
         return it == ProcedureFactory::registry().end() ? nullptr : (it->second)(tag, data);
     }
@@ -46,7 +47,7 @@ public:
 template<typename T>
 struct ProcedureFactoryRegister {
     ProcedureFactoryRegister(ModuleId name) {
-        ProcedureFactory::registry()[name] = [](Tag tag, std::map<int, std::experimental::any> data) {
+        ProcedureFactory::registry()[name] = [](Tag tag, std::map<int, Data> data) {
             return new T(tag, data);
         };
         std::cout << "registered" << std::endl;
@@ -57,7 +58,7 @@ class TestProcedure : public Procedure {
 private:
     static ProcedureFactoryRegister<TestProcedure> FactoryRegistrar;
 public:
-    TestProcedure(Tag tag, std::map<int, std::experimental::any> data) : Procedure(tag, data) {
+    TestProcedure(Tag tag, std::map<int, Data> data) : Procedure(tag, data) {
         std::cout << "created" << std::endl;
     }
 

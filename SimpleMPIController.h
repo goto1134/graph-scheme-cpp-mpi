@@ -8,6 +8,7 @@
 
 #include <fruit/fruit.h>
 #include <map>
+#include <ostream>
 #include "MPIController.h"
 #include "ModuleLoader.h"
 

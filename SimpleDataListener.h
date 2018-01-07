@@ -16,7 +16,7 @@ class SimpleDataListener : public DataReadyListener {
 private:
 public:
     void
-    start(ModuleId moduleId, Tag tag, const std::map<int, std::experimental::any> &data) override {
+    start(ModuleId moduleId, Tag tag, const std::map<int, Data> &data) override {
         const auto procedure = ProcedureFactory::instantiate(moduleId, tag, data);
         procedure->run();
     }
