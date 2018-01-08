@@ -7,7 +7,15 @@
 #include <boost/format.hpp>
 #include <boost/array.hpp>
 #include <valarray>
+#include <DataBuffer.h>
+#include <ResultBuffer.h>
+#include <SimpleResultBuffer.h>
+#include "SimpleDataBuffer.h"
 #include "SimpleMPIController.h"
+#include "SimpleDataListener.h"
+
+fruit::Component<DataBuffer, ResultBuffer> getGraphSchemeComponents(std::vector<ModuleData> *localModules,
+                                                                    std::map<ModuleId, MPIGraphSchemeModule> *allModules);
 
 void SimpleMPIController::start() {
     // Get the number of processes
@@ -17,7 +25,7 @@ void SimpleMPIController::start() {
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
 
-    std::map<int, ModuleId> moduleMap = getModuleMap(world_size, rank);
+    std::map<ModuleId, int> moduleMap = getModuleMap(world_size, rank);
 
     if (rank == MASTER_NODE) {
         for (auto moduleEntry : moduleMap) {
@@ -25,6 +33,15 @@ void SimpleMPIController::start() {
         }
     }
 
+
+    std::vector<ModuleData> localModules;
+    for (auto moduleLocation : moduleMap) {
+        if (moduleLocation.second == rank) {
+            localModules.push_back(mpiGraphSchemeModules->at(moduleLocation.first).moduleData);
+        }
+    }
+
+    fruit::Injector<DataBuffer, ResultBuffer> injector(getGraphSchemeComponents, &localModules, mpiGraphSchemeModules);
     MPI_Barrier(MPI_COMM_WORLD);
 
 
@@ -57,36 +74,55 @@ void SimpleMPIController::start() {
         std::cout << "Hello, World!" << std::endl;
     }
 
-    MPI_Finalize();
 }
 
 
-std::map<int, ModuleId> SimpleMPIController::getModuleMap(int world_size, int rank) {
-    auto modules = moduleloader->getModules();
+std::map<ModuleId, int> SimpleMPIController::getModuleMap(int world_size, int rank) {
 
-    const auto moduleCount = modules.size();
+    const auto moduleCount = mpiGraphSchemeModules->size();
     const auto intBufferLength = 2 * moduleCount;
     auto buffer = new int[intBufferLength];
     if (rank == MASTER_NODE) {
-        for (unsigned long i = 0; i < moduleCount; i++) {
-            const auto module = modules.at(i);
+        int i = 0;
+        for (const auto &module : *mpiGraphSchemeModules) {
             auto nodeId = i % world_size;
-            buffer[2 * i] = static_cast<int>(nodeId);
-            buffer[2 * i + 1] = module.id;
+            buffer[2 * i] = module.first;
+            buffer[2 * i + 1] = nodeId;
+            i++;
         }
 
     }
     MPI_Bcast(buffer, (int) intBufferLength, MPI_INT, MASTER_NODE, MPI_COMM_WORLD);
 
-    std::map<int, ModuleId> moduleMap;
+    std::map<ModuleId, int> moduleMap;
     for (auto i = 0; i < moduleCount; i++) {
         moduleMap.insert(std::make_pair(buffer[2 * i], buffer[2 * i + 1]));
     }
 
-    delete [] buffer;
+    delete[] buffer;
     return moduleMap;
 }
 
-fruit::Component<fruit::Required<ModuleLoader>, MPIController> getSimpleControllerComponent() {
+fruit::Component<fruit::Required<std::map<ModuleId, MPIGraphSchemeModule>>, MPIController>
+getSimpleControllerComponent() {
     return fruit::createComponent().bind<MPIController, SimpleMPIController>();
 }
+
+fruit::Component<fruit::Required<DataReadyListener, std::vector<ModuleData>>, DataBuffer> getSimpleDataBuffer();
+
+fruit::Component<DataBuffer, ResultBuffer> getGraphSchemeComponents(std::vector<ModuleData> *localModules,
+                                                                    std::map<ModuleId, MPIGraphSchemeModule> *allModules) {
+
+    return fruit::createComponent()
+            .install(getSimpleDataBuffer)
+            .install(getSimpleDataListener)
+            .install(getSimpleResultBuffer)
+            .bindInstance(*localModules)
+            .bindInstance(*allModules);
+}
+
+
+fruit::Component<fruit::Required<DataReadyListener, std::vector<ModuleData>>, DataBuffer> getSimpleDataBuffer() {
+    return fruit::createComponent().bind<DataBuffer, SimpleDataBuffer>();
+};
+

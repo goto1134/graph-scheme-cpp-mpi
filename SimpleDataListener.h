@@ -5,21 +5,20 @@
 #ifndef GRAPH_SCHEME_CPP_MPI_SIMPLEDATALISTENER_H
 #define GRAPH_SCHEME_CPP_MPI_SIMPLEDATALISTENER_H
 
-#include "Procdure.h"
+#include <fruit/fruit.h>
 #include <DataReadyListener.h>
-#include <experimental/any>
-#include <Tag.h>
-#include <Module.h>
-#include <map>
+#include "ProcedureFactory.h"
 
 class SimpleDataListener : public DataReadyListener {
 private:
+    ProcedureFactory *procedureFactory;
 public:
+    INJECT(SimpleDataListener(ProcedureFactory * procedureFactory)) : procedureFactory(procedureFactory) {};
+
     void
-    start(ModuleId moduleId, Tag tag, const std::map<int, Data> &data) override {
-        const auto procedure = ProcedureFactory::instantiate(moduleId, tag, data);
-        procedure->run();
-    }
+    start(ModuleId moduleId, Tag tag, const std::map<int, Data> &data) override;
 };
+
+fruit::Component<fruit::Required<ProcedureFactory>, DataReadyListener> getSimpleDataListener();
 
 #endif //GRAPH_SCHEME_CPP_MPI_SIMPLEDATALISTENER_H

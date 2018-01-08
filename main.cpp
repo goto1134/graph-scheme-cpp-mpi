@@ -2,92 +2,30 @@
 #include <fruit/fruit.h>
 #include <iostream>
 #include <mpi.h>
+#include <Data.h>
 #include "MPIController.h"
 #include "SimpleMPIController.h"
-#include "HelloWorldModuleLoader.h"
+#include "ModuleMapBuilder.h"
 
 #define MASTER_NODE 0
-//
-//class Module {
-//private:
-//public:
-//    const ModuleId id;
-//    const int inputCount;
-//    const bool isInititial;
-//
-//    Module(const ModuleId id, const int inputCount, const bool isInititial = false) : id(id), inputCount(inputCount),
-//                                                                                      isInititial(isInititial) {}
-//};
-//
-//
-//class ModuleLoader {
-//public:
-//    std::vector<Module> getModules() {
-//        std::vector<Module> modules;
-//        modules.emplace_back(1, 1);
-//        modules.emplace_back(2, 1);
-//        return modules;
-//    }
-//};
-//
-//std::map<int, ModuleId> getModuleMap(int world_size, int rank, ModuleLoader &loader);
-//
-//class Stringer {
-//public:
-//    virtual std::string getString() const = 0;
-//};
-//
-//class HelloStringer : public Stringer {
-//public:
-//    INJECT(HelloStringer()) {}
-//
-//    std::string getString() const override {
-//        return "Hello World";
-//    }
-//};
-//
-//class HelloWorlder {
-//private:
-//    const Stringer *stringer;
-//public:
-//    INJECT(HelloWorlder(const Stringer *stringer)) : stringer(stringer) {}
-//
-//    void print() {
-//        std::cout << stringer->getString() << std::endl;
-//    }
-//};
 
-//fruit::Component<HelloWorlder> getCheckedAdderComponent() {
-//    return fruit::createComponent().bind<Stringer, HelloStringer>();
-//}
+fruit::Component<MPIController> getComponent(std::map<ModuleId, MPIGraphSchemeModule> *modules);
 
-fruit::Component<MPIController> getComponent();
+class PrintToStdProcedure : public Procedure {
+public:
+    PrintToStdProcedure(Tag tag, const std::map<int, Data> &data, ResultBuffer *resultBuffer) : Procedure(tag, data,
+                                                                                                          resultBuffer) {}
+
+    void run() override {
+        const auto string = data.at(1);
+        auto basic_string = std::string(string.array);
+        std::cout << basic_string << std::endl;
+    }
+};
 
 int main(int argc, char **argv) {
 
     std::cout << "Before start" << std::endl;
-//    MPI_Init(&argc, &argv);
-//    // Get the number of processes
-//    int world_size;
-//    MPI_Comm_size(MPI_COMM_WORLD, &world_size);
-//    int rank;
-//    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-//
-//    ModuleLoader loader;
-//    std::map<int, ModuleId> moduleMap = getModuleMap(world_size, rank, loader);
-//
-//    if (rank == MASTER_NODE) {
-//        for (auto moduleEntry : moduleMap) {
-//            std::cout << moduleEntry.first << " : " << moduleEntry.second << std::endl;
-//        }
-//    }
-//
-//    MPI_Barrier(MPI_COMM_WORLD);
-//
-//    if (rank == MASTER_NODE) {
-//        std::cout << world_size << std::endl;
-//        std::cout << "Hello, World!" << std::endl;
-//    }
 
     int provided_thread_level;
     MPI_Init_thread(&argc, &argv, MPI_THREAD_FUNNELED, &provided_thread_level);
@@ -98,42 +36,18 @@ int main(int argc, char **argv) {
 
     std::cout << "Provided Thread Level = " << provided_thread_level << std::endl;
 
-    fruit::Injector<MPIController> injector(getComponent);
+    auto map = ModuleMapBuilder().add(
+            MPIGraphSchemeModule(ModuleData(1, 1, true), Procedure::constructor<PrintToStdProcedure>())).build();
+
+    fruit::Injector<MPIController> injector(getComponent, &map);
     MPIController *controller(injector);
     controller->start();
-//    HelloWorlder *helloWorlder(injector);
-//    helloWorlder->print();
-//    MPI_Finalize();
+    MPI_Finalize();
     return 0;
 }
 
-fruit::Component<MPIController> getComponent() {
-    return fruit::createComponent().install(getHelloWorldModuleLoader).install(getSimpleControllerComponent);
+fruit::Component<MPIController> getComponent(std::map<ModuleId, MPIGraphSchemeModule> *modules) {
+    return fruit::createComponent()
+            .install(getSimpleControllerComponent)
+            .bindInstance(*modules);
 }
-//
-//std::map<int, ModuleId> getModuleMap(int world_size, int rank, ModuleLoader &loader) {
-//    auto modules = loader.getModules();
-//
-//    const auto moduleCount = modules.size();
-//    const auto intBufferLength = 2 * moduleCount;
-//    auto buffer = new int[intBufferLength];
-//    if (rank == MASTER_NODE) {
-//        for (unsigned long i = 0; i < moduleCount; i++) {
-//            const auto module = modules.at(i);
-//            auto nodeId = i % world_size;
-//            buffer[2 * i] = static_cast<int>(nodeId);
-//            buffer[2 * i + 1] = module.id;
-//        }
-//
-//    }
-//    MPI_Bcast(buffer, (int) intBufferLength, MPI_INT, MASTER_NODE, MPI_COMM_WORLD);
-//
-//    std::map<int, ModuleId> moduleMap;
-//    for (auto i = 0; i < moduleCount; i++) {
-//        moduleMap.insert(std::make_pair(buffer[2 * i], buffer[2 * i + 1]));
-//    }
-//    return moduleMap;
-//}
-
-
-

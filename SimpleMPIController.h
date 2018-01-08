@@ -16,17 +16,18 @@
 
 class SimpleMPIController : public MPIController {
 private:
-    ModuleLoader *moduleloader;
+    std::map<ModuleId, MPIGraphSchemeModule> *mpiGraphSchemeModules;
+//    std::map<ModuleId, ModuleData> modules;
 
-    std::map<int, ModuleId> getModuleMap(int world_size, int rank);
+    std::map<ModuleId, int> getModuleMap(int world_size, int rank);
 
 public:
-    INJECT(SimpleMPIController(ModuleLoader * moduleLoader)) : moduleloader(moduleLoader) {};
+    INJECT(SimpleMPIController(std::map<ModuleId, MPIGraphSchemeModule> * mpiGraphSchemeModules)) : mpiGraphSchemeModules(mpiGraphSchemeModules) {};
 
     void start() override;
 
 };
 
-fruit::Component<fruit::Required<ModuleLoader>,MPIController> getSimpleControllerComponent();
+fruit::Component<fruit::Required<std::map<ModuleId, MPIGraphSchemeModule>>, MPIController> getSimpleControllerComponent();
 
 #endif //GRAPH_SCHEME_CPP_MPI_SIMPLEMPICONTROLLER_H
