@@ -43,62 +43,96 @@ void SimpleMPIController::start() {
         }
     }
 
+    int finishNodeRank = -1;
+    for (auto &module : *mpiGraphSchemeModules) {
+        if (module.second.moduleData.isFinal()) {
+            finishNodeRank = moduleMap[module.second.moduleData.id];
+        }
+    }
+
+    std::cout << boost::format("Finish node rank = %1%\n") % finishNodeRank;
+
     fruit::Injector<DataBuffer, ResultBuffer> injector(getGraphSchemeComponents, &localModules, mpiGraphSchemeModules);
 
     auto resultBuffer = injector.get<ResultBuffer *>();
     auto dataBuffer = injector.get<DataBuffer *>();
     MPI_Barrier(MPI_COMM_WORLD);
-    if (rank == MASTER_NODE)
-        readInputFile(resultBuffer);
-
-    auto needToSend = new bool[world_size]{0};
-    auto needToReceive = new bool[world_size]{0};
-
-    Result *resultToSend;
-    if (!resultBuffer->empty()) {
-        resultToSend = resultBuffer->take();
-        const auto address = resultToSend->inputAddress;
-        const ModuleId id = address.moduleId;
-        const auto targetId = moduleMap[id];
-        if (targetId == rank) {
-            dataBuffer->put(id, address.input, resultToSend->tag, resultToSend->data);
-        } else {
-            needToSend[targetId] = true;
-        }
+    int tagCount;
+    if (rank == MASTER_NODE) {
+        addInputDataToMessageBuffer(resultBuffer);
+        tagCount = resultBuffer->size();
+        if (finishNodeRank != MASTER_NODE)
+            MPI_Send(&tagCount, 1, MPI_INT, finishNodeRank, 0, MPI_COMM_WORLD);
+    } else if (rank == finishNodeRank) {
+        MPI_Status status;
+        MPI_Recv(&tagCount, 1, MPI_INT, MASTER_NODE, 0, MPI_COMM_WORLD, &status);
     }
 
-    MPI_Alltoall(needToSend, 1, MPI_CXX_BOOL, needToReceive, 1, MPI_CXX_BOOL, MPI_COMM_WORLD);
 
-    std::valarray<bool> needToCommunicate =
-            std::valarray<bool>(needToSend, world_size) | std::valarray<bool>(needToReceive, world_size);
+    bool finished = false;
+    while (!finished) {
+        auto needToSend = new bool[world_size]{0};
+        auto needToReceive = new bool[world_size]{0};
 
-
-    for (int i = 0; i < world_size; ++i) {
-        if (i == rank)
-            continue;
-        if (needToCommunicate[i]) {
-            bool isSending = i > rank;
-            for (int j = 0; j < 2; ++j) {
-                if (isSending && needToSend[i]) {
-                    int metadata[] = {resultToSend->inputAddress.moduleId, resultToSend->inputAddress.input,
-                                      resultToSend->tag,
-                                      resultToSend->data.length};
-                    MPI_Send(metadata, 4, MPI_INT, i, 0, MPI_COMM_WORLD);
-                    MPI_Send(resultToSend->data.array, resultToSend->data.length, MPI_BYTE, i, 0, MPI_COMM_WORLD);
-                    delete resultToSend;
-                } else if (needToReceive[i]) {
-                    int metadata[4];
-                    MPI_Status status;
-                    MPI_Recv(metadata, 4, MPI_INT, i, 0, MPI_COMM_WORLD, &status);
-                    char *data = new char[metadata[3]];
-                    MPI_Recv(data, metadata[3], MPI_BYTE, i, 0, MPI_COMM_WORLD, &status);
-                    dataBuffer->put(metadata[0], metadata[1], metadata[2], Data(data, metadata[3]));
-                }
-                isSending = !isSending;
+        Result *resultToSend;
+        if (!resultBuffer->empty()) {
+            resultToSend = resultBuffer->take();
+            const auto address = resultToSend->inputAddress;
+            const ModuleId id = address.moduleId;
+            const auto targetId = moduleMap[id];
+            if (targetId == rank) {
+                dataBuffer->put(id, address.input, resultToSend->tag, resultToSend->data);
+            } else {
+                needToSend[targetId] = true;
             }
         }
-    }
 
+        MPI_Alltoall(needToSend, 1, MPI_CXX_BOOL, needToReceive, 1, MPI_CXX_BOOL, MPI_COMM_WORLD);
+
+        std::valarray<bool> needToCommunicate =
+                std::valarray<bool>(needToSend, world_size) | std::valarray<bool>(needToReceive, world_size);
+        for (int i = 0; i < world_size; ++i) {
+
+            if (i == rank)
+                continue;
+            if (needToCommunicate[i]) {
+                bool isSending = i > rank;
+                for (int j = 0; j < 2; ++j) {
+                    if (isSending) {
+                        if (needToSend[i]) {
+                            int metadata[] = {resultToSend->inputAddress.moduleId, resultToSend->inputAddress.input,
+                                              resultToSend->tag,
+                                              resultToSend->data.length};
+                            MPI_Send(metadata, 4, MPI_INT, i, 0, MPI_COMM_WORLD);
+                            MPI_Send(resultToSend->data.array, resultToSend->data.length, MPI_BYTE, i, 0,
+                                     MPI_COMM_WORLD);
+                            delete resultToSend;
+                        }
+                    } else if (needToReceive[i]) {
+                        int metadata[4];
+                        MPI_Status status;
+                        MPI_Recv(metadata, 4, MPI_INT, i, 0, MPI_COMM_WORLD, &status);
+                        char *data = new char[metadata[3]];
+                        MPI_Recv(data, metadata[3], MPI_BYTE, i, 0, MPI_COMM_WORLD, &status);
+                        dataBuffer->put(metadata[0], metadata[1], metadata[2], Data(data, metadata[3]));
+                    }
+
+                    isSending = !isSending;
+                }
+            }
+
+
+            delete[] needToSend;
+            delete[] needToReceive;
+            if (rank == finishNodeRank) {
+                const int finishedTagsCount = resultBuffer->finishedTagsCount();
+                finished = (finishedTagsCount == tagCount);
+            }
+
+
+            MPI_Bcast(&finished, 1, MPI_CXX_BOOL, finishNodeRank, MPI_COMM_WORLD);
+        }
+    }
 }
 
 
@@ -128,10 +162,10 @@ std::map<ModuleId, int> SimpleMPIController::getModuleMap(int world_size, int ra
     return moduleMap;
 }
 
-void SimpleMPIController::readInputFile(ResultBuffer *resultBuffer) {
+void SimpleMPIController::addInputDataToMessageBuffer(ResultBuffer *resultBuffer) {
     int initialModuleId;
     for (auto &module :*mpiGraphSchemeModules) {
-        if (module.second.moduleData.isInitial) {
+        if (module.second.moduleData.isInitial()) {
             initialModuleId = module.first;
         }
     }

@@ -21,7 +21,7 @@ private:
 
     std::map<ModuleId, int> getModuleMap(int world_size, int rank);
 
-    void readInputFile(ResultBuffer *resultBuffer);
+    void addInputDataToMessageBuffer(ResultBuffer *resultBuffer);
 
 public:
     INJECT(SimpleMPIController(std::map<ModuleId, MPIGraphSchemeModule> * mpiGraphSchemeModules))
