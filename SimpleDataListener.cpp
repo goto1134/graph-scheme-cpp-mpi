@@ -3,6 +3,7 @@
 //
 
 #include <thread>
+#include <iostream>
 #include "SimpleDataListener.h"
 
 fruit::Component<fruit::Required<ProcedureFactory>, DataReadyListener> getSimpleDataListener() {
@@ -12,4 +13,5 @@ fruit::Component<fruit::Required<ProcedureFactory>, DataReadyListener> getSimple
 void SimpleDataListener::start(ModuleId moduleId, Tag tag, const std::map<int, Data> &data) {
     const auto procedure = procedureFactory->instantiate(moduleId, tag, data);
     std::thread t1(&Procedure::run, procedure);
+    t1.join();
 }

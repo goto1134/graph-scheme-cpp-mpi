@@ -32,30 +32,4 @@ public:
     }
 };
 
-
-//template<typename T>
-//struct ProcedureFactoryRegister {
-//    ProcedureFactoryRegister(ModuleId name) {
-//        ProcedureFactory::registry()[name] = [](Tag tag, std::map<int, Data> data, ResultBuffer *resultBuffer) {
-//            return new T(tag, data, resultBuffer);
-//        };
-//        std::cout << "registered" << std::endl;
-//    }
-//};
-
-//class TestProcedure : public Procedure {
-//private:
-//    static ProcedureFactoryRegister<TestProcedure> FactoryRegistrar;
-//public:
-//    TestProcedure(Tag tag, std::map<int, Data> data, ResultBuffer *resultBuffer) : Procedure(tag, data, resultBuffer) {
-//        std::cout << "created" << std::endl;
-//    }
-//
-//    void run() override {
-//        std::cout << "run" << std::endl;
-//    }
-//};
-//
-//ProcedureFactoryRegister<TestProcedure> TestProcedure::FactoryRegistrar(1);
-
 #endif //GRAPH_SCHEME_CPP_MPI_PROCDURE_H

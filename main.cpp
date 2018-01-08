@@ -3,6 +3,7 @@
 #include <iostream>
 #include <mpi.h>
 #include <Data.h>
+#include <fstream>
 #include "MPIController.h"
 #include "SimpleMPIController.h"
 #include "ModuleMapBuilder.h"
@@ -14,18 +15,17 @@ fruit::Component<MPIController> getComponent(std::map<ModuleId, MPIGraphSchemeMo
 class PrintToStdProcedure : public Procedure {
 public:
     PrintToStdProcedure(Tag tag, const std::map<int, Data> &data, ResultBuffer *resultBuffer) : Procedure(tag, data,
-                                                                                                          resultBuffer) {}
+                                                                                                          resultBuffer) {
+    }
 
     void run() override {
-        const auto string = data.at(1);
-        auto basic_string = std::string(string.array);
+        const auto string = data.at(0);
+        auto basic_string = std::string(string.array, static_cast<unsigned long>(string.length));
         std::cout << basic_string << std::endl;
     }
 };
 
 int main(int argc, char **argv) {
-
-    std::cout << "Before start" << std::endl;
 
     int provided_thread_level;
     MPI_Init_thread(&argc, &argv, MPI_THREAD_FUNNELED, &provided_thread_level);
@@ -37,7 +37,7 @@ int main(int argc, char **argv) {
     std::cout << "Provided Thread Level = " << provided_thread_level << std::endl;
 
     auto map = ModuleMapBuilder().add(
-            MPIGraphSchemeModule(ModuleData(1, 1, true), Procedure::constructor<PrintToStdProcedure>())).build();
+            MPIGraphSchemeModule(ModuleData(12, 1, true), Procedure::constructor<PrintToStdProcedure>())).build();
 
     fruit::Injector<MPIController> injector(getComponent, &map);
     MPIController *controller(injector);
