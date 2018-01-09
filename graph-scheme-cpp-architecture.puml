@@ -1,0 +1,26 @@
+@startuml
+
+
+package "Поддержка связи" {
+[Message Controller]
+}
+
+
+package "Хранение данных и отслеживание состояния" {
+[Input data buffer]
+[Result data buffer]
+[Data ready listener]
+}
+
+
+package "Порождение процедур" {
+[Procedure Factory]
+}
+[Procedure Factory]-->[Result data buffer]
+[Input data buffer]-->[Data ready listener]
+[Data ready listener]-->[Procedure Factory]
+[Message Controller]-->[Input data buffer]
+[Result data buffer]-->[Message Controller]
+
+
+@enduml

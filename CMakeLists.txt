@@ -17,7 +17,7 @@ target_include_directories(graph_scheme_cpp INTERFACE graph-scheme-cpp/)
 
 add_executable(graph_scheme_cpp_mpi main.cpp Procedure.h SimpleDataListener.h MPIController.h SimpleMPIController.cpp
         SimpleMPIController.h ModuleMapBuilder.h ModuleMapBuilder.cpp SimpleDataListener.cpp MPIGraphSchemeModule.cpp
-        MPIGraphSchemeModule.h ProcedureFactory.cpp ProcedureFactory.h)
+        MPIGraphSchemeModule.h ProcedureFactory.cpp ProcedureFactory.h MPIGraphScheme.cpp MPIGraphScheme.h)
 
 #[[graph-scheme-cpp/DataBuffer.h graph-scheme-cpp/Input.h graph-scheme-cpp/Module.h graph-scheme-cpp/Tag.h graph-scheme-cpp/ProcedureFactory.h graph-scheme-cpp/Result.h graph-scheme-cpp/ResultBuffer.h]]
 
