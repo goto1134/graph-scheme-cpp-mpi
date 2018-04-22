@@ -4,8 +4,8 @@
 
 #include "ProcedureFactory.h"
 
-Procedure *ProcedureFactory::instantiate(const int &name, int tag, std::map<int, Data> data) {
-    auto it = impl.find(name);
+Procedure *ProcedureFactory::instantiate(const int &moduleId, int tag, std::map<int, Data> data) {
+    auto it = impl.find(moduleId);
     return it == impl.end() ? nullptr : (it->second)(tag, data, resultBuffer);
 }
 

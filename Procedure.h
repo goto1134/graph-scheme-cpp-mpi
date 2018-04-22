@@ -30,6 +30,15 @@ public:
             return new T(tag, data, resultBuffer);
         };
     }
+
+protected:
+    void send(Result *result) {
+        resultBuffer->put(result);
+    }
+
+    Data read(int input) {
+        return data.at(input);
+    }
 };
 
 #endif //GRAPH_SCHEME_CPP_MPI_PROCDURE_H

@@ -12,7 +12,7 @@ fruit::Component<MPIController> createMPIGraphScheme(std::map<ModuleId, MPIGraph
 }
 
 void MPIGraphSchemeStart(std::map<ModuleId, MPIGraphSchemeModule> *modules) {
-    fruit::Injector<MPIController> injector(createMPIGraphScheme, &modules);
+    fruit::Injector<MPIController> injector(createMPIGraphScheme, modules);
     MPIController *controller(injector);
     controller->start();
 }

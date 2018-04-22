@@ -26,7 +26,7 @@ public:
         }
     }
 
-    Procedure *instantiate(const int &name, int tag, std::map<int, Data> data);
+    Procedure *instantiate(const int &moduleId, int tag, std::map<int, Data> data);
 
 };
 
